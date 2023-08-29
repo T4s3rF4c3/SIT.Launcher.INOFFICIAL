@@ -61,9 +61,9 @@ namespace SIT.Launcher
         {
             LauncherConfig launcherConfig = new LauncherConfig()
             {
-                AutomaticallyDeobfuscateDlls = true,
-                AutomaticallyInstallAssemblyDlls = true,
-                AutomaticallyInstallSIT = true,
+                AutomaticallyDeobfuscateDlls = false,
+                AutomaticallyInstallAssemblyDlls = false,
+                AutomaticallyInstallSIT = false,
                 AutomaticallyInstallAkiSupport = true,
                 CloseLauncherAfterLaunch = false,
                 ServerInstance = new ServerInstance() { ServerAddress = "http://127.0.0.1:6969" }
