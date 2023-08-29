@@ -18,7 +18,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Paulov")]
 [assembly: AssemblyProduct("SIT Launcher")]
-[assembly: AssemblyCopyright("Copyright © Paulov 2022")]
+[assembly: AssemblyCopyright("Copyright Â© Paulov 2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

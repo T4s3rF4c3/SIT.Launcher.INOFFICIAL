@@ -37,7 +37,7 @@ namespace SIT.Launcher
             }
             this.DataContext = this;
 
-            this.Title = "SIT Launcher - " + App.ProductVersion.ToString();
+            this.Title = "SIT Launcher INOFFICIAL - " + App.ProductVersion.ToString();
 
             this.Loaded += MainWindow_Loaded;
             this.ContentRendered += MainWindow_ContentRendered;
@@ -124,7 +124,7 @@ namespace SIT.Launcher
                 // Check BepInEx
                 || !DoesBepInExExistInInstall(Config.InstallLocation)
                 // Check SIT.Core
-                || !IsSITCoreInstalled(Config.InstallLocation)
+                //|| !IsSITCoreInstalled(Config.InstallLocation)
                
                 
                 )
@@ -196,9 +196,7 @@ namespace SIT.Launcher
             await loadingDialog.UpdateAsync("Installing", $"Installing BepInEx");
             await DownloadAndInstallBepInEx5(exeLocation);
            
-            await loadingDialog.UpdateAsync("Installing", $"Installing SIT.Core");
-            await DownloadAndInstallSIT(exeLocation);
-
+            
           
 
             UpdateButtonText(null);
@@ -424,12 +422,6 @@ namespace SIT.Launcher
                 return;
             }
 
-            if (!await DownloadAndInstallSIT(installLocation))
-            {
-                MessageBox.Show("Install and Start aborted");
-                return;
-            }
-
             // Copy Aki Dlls for support
             if (!DownloadAndInstallAki(installLocation))
             {
@@ -597,144 +589,6 @@ namespace SIT.Launcher
 
             btnLaunchGame.Content = LaunchButtonText;
         }
-
-        private bool IsSITCoreInstalled(string exeLocation)
-        {
-            var baseGamePath = Directory.GetParent(exeLocation).FullName;
-            var bepinexPath = exeLocation.Replace("EscapeFromTarkov.exe", "");
-            bepinexPath += "BepInEx";
-
-            var bepinexPluginsPath = bepinexPath + "\\plugins\\";
-            if (!Directory.Exists(bepinexPluginsPath))
-                return false;
-
-            return File.Exists(bepinexPluginsPath + "SIT.Core.dll");
-        }
-
-        private async Task<bool> DownloadAndInstallSIT(string exeLocation, bool forceInstall = false)
-        {
-            if (!Config.AutomaticallyInstallSIT && IsSITCoreInstalled(exeLocation))
-                return true;
-
-            await loadingDialog.UpdateAsync("Installing SIT", $"Disovering files");
-
-            var baseGamePath = Directory.GetParent(exeLocation).FullName;
-            var bepinexPath = exeLocation.Replace("EscapeFromTarkov.exe", "");
-            bepinexPath += "BepInEx";
-
-            var bepinexPluginsPath = bepinexPath + "\\plugins\\";
-            if (!Directory.Exists(bepinexPluginsPath))
-                return false;
-
-       
-            UpdateButtonText("Downloading SIT");
-
-            try
-            {
-
-                var github = new GitHubClient(new ProductHeaderValue("SIT-Launcher"));
-                var user = await github.User.Get("paulov-t");
-                var tarkovCoreReleases = await github.Repository.Release.GetAll("paulov-t", "SIT.Core", new ApiOptions() { });
-                var tarkovCoreReleasesOrdered = tarkovCoreReleases.OrderByDescending(x => x.CreatedAt).ToList();
-                Release latestCore = null;
-                if ((Config.AutomaticallyInstallSITPreRelease || Config.ForceInstallLatestSIT) && tarkovCoreReleasesOrdered[0].Prerelease)
-                    latestCore = tarkovCoreReleasesOrdered[0];
-
-                if (latestCore == null)
-                    latestCore = tarkovCoreReleasesOrdered.First(x => !x.Prerelease);
-
-                var clientModsDeliveryPath = Path.Combine(App.ApplicationDirectory, "ClientMods");
-                Directory.CreateDirectory(clientModsDeliveryPath);
-
-                var maxSize = 100000000;
-                var allAssets = latestCore
-                    .Assets
-                    .Where(x => x.Size < maxSize)
-                    .OrderByDescending(x => x.CreatedAt).DistinctBy(x => x.Name);
-
-                await loadingDialog.UpdateAsync("Installing SIT", $"Downloading files");
-
-                var allAssetsCount = allAssets.Count();
-                var assetIndex = 0;
-
-                var httpClient = new HttpClient();
-                httpClient.Timeout = new TimeSpan(0, 5, 0);
-
-                foreach (var asset in allAssets)
-                {
-                    var response = await httpClient.GetAsync(asset.BrowserDownloadUrl, HttpCompletionOption.ResponseContentRead);
-                    if (response != null)
-                    {
-                        var ms = new MemoryStream();
-                        await response.Content.CopyToAsync(ms);
-
-                        var deliveryPath = Path.Combine(clientModsDeliveryPath, asset.Name); //App.ApplicationDirectory + "\\ClientMods\\" + asset.Name;
-                        var fiDelivery = new FileInfo(deliveryPath);
-                        await File.WriteAllBytesAsync(deliveryPath, ms.ToArray());
-                    }
-                    assetIndex++;
-                    await loadingDialog.UpdateAsync("Installing SIT", $"Downloading files ({assetIndex}/{allAssetsCount})");
-                }
-
-
-                await loadingDialog.UpdateAsync("Installing SIT", $"Installing files");
-
-                UpdateButtonText("Installing SIT");
-
-                foreach (var clientModDLL in Directory.GetFiles(App.ApplicationDirectory + "\\ClientMods\\").Where(x => !x.Contains("DONOTDELETE")))
-                {
-                    if (clientModDLL.Contains("Assembly-CSharp"))
-                    {
-                        var assemblyLocation = exeLocation.Replace("EscapeFromTarkov.exe", "");
-                        assemblyLocation += "EscapeFromTarkov_Data\\Managed\\Assembly-CSharp.dll";
-
-                        // Backup the Assembly-CSharp and place the newest clean one
-                        if (!File.Exists(assemblyLocation + ".backup"))
-                        {
-                            File.Copy(assemblyLocation, assemblyLocation + ".backup");
-                            File.Copy(clientModDLL, assemblyLocation, true);
-                        }
-
-                        if (Config.ForceInstallLatestSIT)
-                            File.Copy(clientModDLL, assemblyLocation, true);
-                    }
-                    else
-                    {
-                        bool shouldCopy = false;
-                        var fiClientMod = new FileInfo(clientModDLL);
-                        var fiExistingMod = new FileInfo(bepinexPluginsPath + "\\" + fiClientMod.Name);
-                        if (fiExistingMod.Exists && allAssets.Any(x => x.Name == fiClientMod.Name))
-                        {
-                            var createdDateOfDownloadedAsset = allAssets.FirstOrDefault(x => x.Name == fiClientMod.Name).CreatedAt;
-                            shouldCopy = (fiExistingMod.LastWriteTime < createdDateOfDownloadedAsset);
-                        }
-                        else
-                            shouldCopy = true;
-
-                        if (Config.ForceInstallLatestSIT)
-                            shouldCopy = true;
-
-                        if (shouldCopy)
-                            File.Copy(clientModDLL, bepinexPluginsPath + "\\" + fiClientMod.Name, true);
-                    }
-                }
-
-                File.WriteAllText("CurrentSITVersion.txt", latestCore.Name);
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Unable to download and install SIT.{Environment.NewLine} {ex.Message}", "Error");
-                return false;
-            }
-
-            await loadingDialog.UpdateAsync(null, null);
-
-            return true;
-
-
-        }
-
         private string GetBepInExPath(string exeLocation)
         {
             var baseGamePath = Directory.GetParent(exeLocation).FullName;
@@ -760,9 +614,9 @@ namespace SIT.Launcher
             if (!Config.AutomaticallyInstallAkiSupport)
                 return true;
 
-            Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Bepinex/Patchers");
-            Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Bepinex/Plugins");
-            Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Managed");
+            //Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Bepinex/Patchers");
+            //Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Bepinex/Plugins");
+            //Directory.CreateDirectory(App.ApplicationDirectory + "/AkiSupport/Managed");
 
             try
             {
@@ -780,21 +634,19 @@ namespace SIT.Launcher
                 DirectoryInfo diAkiSupportManaged = new DirectoryInfo(sitLauncherAkiSupportManagedPath);
                 DirectoryInfo diManaged = new DirectoryInfo(managedPath);
 
-                if (diManaged.Exists && diAkiSupportManaged.Exists)
-                {
-                    List<FileInfo> fiAkiManagedFiles = Directory.GetFiles(sitLauncherAkiSupportManagedPath).Select(x => new FileInfo(x)).ToList();
+                List<FileInfo> fiAkiManagedFiles = Directory.GetFiles(sitLauncherAkiSupportManagedPath).Select(x => new FileInfo(x)).ToList();
                     foreach (var fileInfo in fiAkiManagedFiles)
                     {
                         var path = System.IO.Path.Combine(managedPath, fileInfo.Name);
 
                         // DO NOT OVERWRITE IF NEWER VERSION OF AKI EXISTS IN DIRECTORY
-                        var existingFI = new FileInfo(path);
-                        if (existingFI.Exists && existingFI.LastWriteTime > fileInfo.LastWriteTime)
-                            continue;
+                        //var existingFI = new FileInfo(path);
+                        //if (existingFI.Exists)
+                        //    continue;
 
                         fileInfo.CopyTo(path, true);
                     }
-                }
+                
 
                 DirectoryInfo diAkiSupportBepinexPlugins = new DirectoryInfo(sitLauncherAkiSupportBepinexPluginsPath);
                 DirectoryInfo diBepinex = new DirectoryInfo(bepinexPluginsPath);
@@ -816,8 +668,6 @@ namespace SIT.Launcher
 
                         // DO NOT OVERWRITE IF NEWER VERSION OF AKI EXISTS IN DIRECTORY
                         var existingFI = new FileInfo(existingPath);
-                        if (existingFI.Exists && existingFI.LastWriteTime > fileInfo.LastWriteTime)
-                            continue;
 
                         fileInfo.CopyTo(existingPath, true);
                     }
