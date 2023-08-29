@@ -37,7 +37,7 @@ namespace SIT.Launcher
             }
             this.DataContext = this;
 
-            this.Title = "SIT Launcher INOFFICIAL - " + App.ProductVersion.ToString();
+            this.Title = "SIT Launcher INOFFICIAL - AKI 3.6.1 - EFT 0.13.1.3.25206";
 
             this.Loaded += MainWindow_Loaded;
             this.ContentRendered += MainWindow_ContentRendered;

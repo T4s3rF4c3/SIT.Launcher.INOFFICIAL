@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <None Remove="AkiSupport\Bepinex\aki-core.dll" />
-    <None Remove="AkiSupport\Bepinex\aki-custom.dll" />
+    <None Remove="AkiSupport\Bepinex\Plugins\aki-custom.dll" />
     <None Remove="AkiSupport\Bepinex\Patchers\DONOTDELETE.txt" />
     <None Remove="AkiSupport\Bepinex\Plugins\DONOTDELETE.txt" />
     <None Remove="DeObfus\BaseRemapperConfig.json" />
